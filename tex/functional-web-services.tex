@@ -45,10 +45,9 @@
   \end{minipage}
   \begin{minipage}{0.7\linewidth}
     \begin{itemize}
-    \item write a small web service
-    \item with http4s
-    \item using an embedded DSL
-    \item emphasize functional style
+    \item explore final encodings
+    \item write embedded DSLs
+    \item goal: craft beautiful web services
     \end{itemize}
   \end{minipage}
   \vfill
@@ -61,33 +60,44 @@
 \end{frame}
 
 \begin{frame}
-  \frametitle{Embedded DSLs}
+  \frametitle{Before We Start: Embedded DSLs}
   \begin{itemize}
   \item embedded in general purpose language (host language)
-  \item powerful: separate \texttt{description} of program from
-    \texttt{execution}
-  \item initial encoding: \texttt{Free Monads}
-  \item final encoding: \texttt{typeclasses + instances}
-  \item also: deep vs shallow embedding
+  \item separate \textbf{description} of program from
+    \textbf{execution}
+  \item one of \textbf{the} core principles in FP
   \end{itemize}
 \end{frame}
 
 \section{A First DSL}
 
-\begin{frame}
+\begin{frame}[fragile]
   \frametitle{A First DSL}
-  \begin{center}
-    \includegraphics[width=2cm]{../pics/owl.png}
-  \end{center}
-  \begin{itemize}
-  \item let's start with our first DSL
-  \item arithmetic operations: \texttt{+} and \texttt{-} (negation)
-  \item how would you do this in an initial encoding?
-  \end{itemize}
+  \begin{minipage}{0.78\linewidth}
+    \begin{itemize}
+    \item let's start with our first DSL
+    \item arithmetic operations:
+      \begin{itemize}
+      \item numeric literals
+      \item \texttt{addition: e1 + e2}
+      \item \texttt{negation: -e}
+      \end{itemize}
+    \end{itemize}
+\begin{minted}{scala}
+21 + 21
+50 + -(6 + 2)
+-(-20 + -20 + -2)
+\end{minted}
+  \end{minipage}
+  \begin{minipage}{0.18\linewidth}
+    \begin{center}
+      \includegraphics[width=1.5cm]{../pics/owl.png}
+    \end{center}
+  \end{minipage}
 \end{frame}
 
 \begin{frame}[fragile,fragile]
-  \frametitle{Initial Encoding}
+  \frametitle{Common Approach: Build AST}
 \begin{minted}{scala}
 sealed trait Exp
 case class Lit(x: Int)           extends Exp
@@ -95,14 +105,46 @@ case class Neg(e: Exp)           extends Exp
 case class Add(e1: Exp, e2: Exp) extends Exp
 \end{minted}
   \begin{itemize}
-  \item writing a program
+  \item writing a program (syntactic sugar omitted)
   \end{itemize}
 \begin{minted}{scala}
-//(8 + -(1 + 2))
-Add(Lit(8),
-    Neg(Add(Lit(1),
+// 50 + -(6 + 2)
+Add(Lit(50),
+    Neg(Add(Lit(6),
             Lit(2))))
 \end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Interpretation}
+  \begin{itemize}
+  \item we captured the program into a value
+  \item able to use different interpreters
+  \end{itemize}
+\begin{minted}{scala}
+def calculate(p: Exp): Int = p match {
+  case Lit(x)     => x
+  case Neg(e)     => -calculate(e)
+  case Add(e1,e2) => calculate(e1) + calculate(e2)
+}
+def pretty(p: Exp): String = ???
+def async(srv: ExpSrv)(p: Exp): Future[Int] = ???
+\end{minted}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Initial Encoding: Drawbacks}
+  \begin{itemize}
+  \item reify explicitly as AST $\approx{}$ initial encoding
+  \item \textcolor{green}{pro}: interpreters can be added easily
+  \item \textcolor{red}{con}: try to add multiplication \textbf{as an
+      addon}
+    \begin{itemize}
+    \item we don't want to change \texttt{Exp}
+    \item old interpreters should work as before
+    \end{itemize}
+  \item spoiler: boils down to the expression problem
+  \end{itemize}
 \end{frame}
 
 \begin{frame}
@@ -122,13 +164,31 @@ Add(Lit(8),
 \end{frame}
 
 \begin{frame}
+  \frametitle{Initial Encoding}
+  \begin{center}
+    \Huge
+    DSL
+  \end{center}
+  \begin{center}
+    \includegraphics[width=1cm]{../pics/point_right.png}
+    \Huge
+    AST
+    \includegraphics[width=1cm]{../pics/point_left.png}
+  \end{center}
+  \begin{center}
+    \Huge
+    Interpreter
+  \end{center}
+\end{frame}
+
+\begin{frame}
   \frametitle{Properties of the Initial Encoding}
   \begin{itemize}
   \item nice to have ADT with possible cases
   \item flexible interpretation, evaluate, pretty print, \dots{}
   \item bad: extending with e.g.\ multiplication is not independent
   \item let's try something different: \texttt{final encoding}
-  \item still embedded DSL, get rid of AST
+  \item get rid of AST
   \end{itemize}
 \end{frame}
 
