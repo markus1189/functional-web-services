@@ -4,6 +4,7 @@
 \usepackage{tikz}
 \usepackage{todonotes}
 \usepackage{soul}
+\usepackage{graphviz}
 
 \setminted{frame=single}
 
@@ -17,7 +18,7 @@
 
 \begin{document}
 {
-  \usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{background.png}}
+  \usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{../pics/background.png}}
   \begin{frame}[plain,noframenumbering]
     \titlepage{}
   \end{frame}
@@ -137,8 +138,7 @@ def async(srv: ExpSrv)(p: Exp): Future[Int] = ???
   \begin{itemize}
   \item reify explicitly as AST $\approx{}$ initial encoding
   \item \textcolor{green}{pro}: interpreters can be added easily
-  \item \textcolor{red}{con}: try to add multiplication \textbf{as an
-      addon}
+  \item \textcolor{red}{con}: try to add multiplication \textbf{as an addon}
     \begin{itemize}
     \item we don't want to change \texttt{Exp}
     \item old interpreters should work as before
@@ -148,74 +148,143 @@ def async(srv: ExpSrv)(p: Exp): Future[Int] = ???
 \end{frame}
 
 \begin{frame}
-  \frametitle{Initial Encoding}
-  \begin{center}
-    \Huge
-    DSL
-  \end{center}
-  \begin{center}
-    \Huge
-    AST
-  \end{center}
-  \begin{center}
-    \Huge
-    Interpreter
-  \end{center}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Initial Encoding}
-  \begin{center}
-    \Huge
-    DSL
-  \end{center}
-  \begin{center}
-    \includegraphics[width=1cm]{../pics/point_right.png}
-    \Huge
-    AST
-    \includegraphics[width=1cm]{../pics/point_left.png}
-  \end{center}
-  \begin{center}
-    \Huge
-    Interpreter
-  \end{center}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Properties of the Initial Encoding}
+  \frametitle{Alternative}
   \begin{itemize}
-  \item nice to have ADT with possible cases
-  \item flexible interpretation, evaluate, pretty print, \dots{}
-  \item bad: extending with e.g.\ multiplication is not independent
-  \item let's try something different: \texttt{final encoding}
-  \item get rid of AST
+  \item what if we scratch the whole ``reify as AST'' step?
+  \item leads to \textit{final encodings}
+  \item \begin{itemize}
+    \item no datatype
+    \item instead: write type classes
+    \item instances = interpreter
+    \end{itemize}
+  \item let's define another calculator
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Final Encoding: Calculator}
+\begin{minted}{scala}
+sealed trait Exp[A] {
+  def lit(x: Int): A
+  def neg(e: A): A
+  def add(e1: A, e2: A): A
+}
+\end{minted}
+  \begin{itemize}
+  \item writing a program
+  \end{itemize}
+\begin{minted}{scala}
+// 50 + -(6 + 2)
+def program[A](implicit E: Exp[A]): A = {
+  import E._ // for demo
+  add(lit(50),
+      neg(add(lit(6),
+              lit(2))))
+}
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Final Encoding: Interpreter}
+  \begin{itemize}
+  \item define interpreters as instances:
+  \end{itemize}
+\begin{minted}{scala}
+implicit val calc: Exp[Int] = new Exp[Int] {
+  def lit(x: Int): Int = x
+  def neg(e: Int): Int = -e
+  def add(e1: Int, e2: Int): Int = e1 + e2
+}
+implicit val pretty: Exp[String] = new Exp[String] {
+  def lit(x: Int): String = x.shows
+  def neg(e: String): String = "-" + e
+  def add(e1: String, e2: String) = s"($e1 + $e2)"
+}
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Final Encoding: Running}
+  \begin{itemize}
+  \item now that we have interpreters, we can run our program:
+  \end{itemize}
+\begin{minted}{scala}
+scala> program[Int]
+res0: Int = 42
+scala> program[String]
+res1: String = (50 + -(6 + 2))
+\end{minted}
+  \begin{itemize}
+  \item (please use newtypes for instances)
   \end{itemize}
 \end{frame}
 
 \begin{frame}
-  \frametitle{Final Encoding}
-  \begin{center}
-    \Huge
-    DSL
-  \end{center}
-  \begin{center}
-    \Huge
-    \st{AST}
-  \end{center}
-  \begin{center}
-    \Huge
-    Interpreter
-  \end{center}
+  \frametitle{Final Encoding: Extension}
+  \begin{itemize}
+  \item the important part: let's add multiplication
+  \item goal: change should not impact existing code
+  \end{itemize}
 \end{frame}
 
+\begin{frame}[fragile]
+  \frametitle{Final Encoding: Multiplication}
+  \begin{itemize}
+  \item add new typeclass
+  \item state required operations
+  \item note: independent of the others
+  \end{itemize}
 
-\begin{frame}
-  \begin{center}
-    \Huge Live Coding: Our First DSL
-  \end{center}
-  \begin{center}
-    \includegraphics[width=0.7\textwidth]{../pics/penguins.jpg}
-  \end{center}
+\begin{minted}{scala}
+sealed trait ExpMul[A] {
+  def mul(e1: A, e2: A): A
+}
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Final Encoding: Using Multiplication}
+\begin{minted}{scala}
+def mulProgram[A](
+  implicit E1: Exp[A], E2: ExpMul[A]
+): A = {
+  import E1._, E2._
+  // 2 * (1 + (10 + 10))
+  mul(lit(2),
+      add(lit(1),
+          add(lit(10),
+              lit(10))))
+}
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Final Encoding: Extend Interpreters}
+  \begin{itemize}
+  \item before we can run this, we need to add the instances
+  \end{itemize}
+\begin{minted}{scala}
+implicit val calc: ExpMul[Int] = new ExpMul[Int] {
+  def mul(e1: Int, e2: Int): Int = e1 * e2
+}
+
+implicit val pretty: ExpMul[String] =
+  new ExpMul[String] {
+    def mul(e1: String, e2: String): String =
+      s"($e1 * $e2)"
+}
+
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Final Encoding: Execute Multiplication}
+\begin{minted}{scala}
+scala> mulProgram[Int]
+res0: Int = 42
+scala> mulProgram[String]
+res1: String = "(2 * (1 + (10 + 10)))"
+\end{minted}
 \end{frame}
 
 \begin{frame}[fragile]
@@ -243,9 +312,66 @@ new Exp[Int] {
   \begin{itemize}
   \item define typeclass for syntax
   \item define instance for semantics
-  \item typeclass also called \texttt{Symantics}
-  \item languages are independent, expressed via constraints on types
+  \item languages are \textbf{independent} and \textbf{composable}
+  \item but: no AST\ldots, what about optimizations?
   \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Final Encoding: Transformations}
+  \begin{itemize}
+  \item in fact, we can still perform program transformations
+  \item example: push down negations
+    \begin{itemize}
+    \item idea: move all ``negations'' into the leaves
+    \item \texttt{-(1 + 2)} $\rightarrow$ \texttt{(-1 + -2)}
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Final Encoding: Transformations}
+  \begin{center}
+    \includegraphics[height=5cm]{../graphs/ast-from.png}
+    \hfill
+    \includegraphics[height=5cm]{../graphs/ast-to.png}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile,fragile,fragile]
+  \frametitle{Final Encoding: Transformations}
+  \begin{itemize}
+  \item we have to make the required context explicit
+  \item what do we need for pushing down negations?
+  \end{itemize}
+\begin{minted}{scala}
+sealed trait Ctx
+case object P extends Ctx
+case object N extends Ctx
+
+implicit def pushNeg[A:Exp]: Exp[Ctx => A] = ???
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Final Encoding: Transformations}
+\begin{minted}{scala}
+def pushNeg[A](implicit E: Exp[A]): Exp[Ctx => A] =
+  new Exp[Ctx => A] {
+    def lit(x: Int): Ctx => A = {
+      case P => E.lit(x)
+      case N => E.neg(E.lit(x))
+    }
+    def neg(e: Ctx => A): Ctx => A = {
+      case P => e(N)
+      case N => e(P)
+    }
+    def add(e1: Ctx => A,e2: Ctx => A): Ctx => A = {
+      ctx => E.add(e1(ctx), e2(ctx))
+    }
+}
+\end{minted}
+
 \end{frame}
 
 \section{Web Services With Http4s}

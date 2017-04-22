@@ -22,6 +22,7 @@ let
     fancyvrb
     float
     framed
+    graphviz
     ifplatform
     lineno
     listings
@@ -46,6 +47,7 @@ stdenv.mkDerivation {
   buildInputs = [
     tex
     which
+    graphviz
   ] ++ (with pythonPackages; [
     pygments
   ]) ++ (with haskellPackages; [

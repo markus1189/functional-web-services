@@ -1,0 +1,15 @@
+digraph {
+  rankdir=BT;
+
+  add1[label="(+)"];
+  "50";
+
+  add2[label="(+)",fillcolor="#81bf76",style=filled];
+  neg[label="-",fillcolor="#27b1b1",style=filled];
+
+  "50" -> add1;
+  neg -> add1;
+  "6" -> add2;
+  "2" -> add2
+  add2 -> neg;
+}

@@ -10,20 +10,36 @@ import           Development.Shake.Util
 import           Text.LaTeX hiding (empty)
 import           Text.LaTeX.Base.Parser
 import           Text.LaTeX.Base.Syntax
+import           System.Directory (getCurrentDirectory)
+import           Debug.Trace (traceShowM)
 
 main :: IO ()
 main = shakeArgs shakeOptions $ do
     want [ "tex" </> "functional-web-services.pdf" ]
 
+    "graphs/*.png" %> \out -> do
+      let inp = out -<.> "dot"
+          dir = fromString (takeDirectory inp)
+      need [inp]
+      void $ withCwd dir $ graphviz (".." </> out) (T.pack (takeFileName inp))
+
     "//*.pdf" %> \out -> do
       let inp = out -<.> "tex"
           dir = fromString (takeDirectory inp)
       tdeps <- liftIO (texDeps inp)
-      need ([inp] ++ map (takeDirectory inp </>) tdeps)
+      needsGraphics <- liftIO (graphicDeps inp)
+      need ([inp] ++ map (takeDirectory inp </>) tdeps ++ needsGraphics)
       void $ withCwd dir $ latexmk (T.pack (takeFileName inp))
 
 latexmk :: Text -> Action ExitCode
-latexmk file = shell ("latexmk -shell-escape -pdf " <> file) empty
+latexmk file = shell ("latexmk -shell-escape -pdf -g " <> file) empty
+
+graphviz :: FilePath -> Text -> Action ExitCode
+graphviz out inp = do
+  let cmd = T.intercalate " " $ ["dot -s100 -Tpng","-o",T.pack out,inp]
+  cwd <- liftIO getCurrentDirectory
+  putNormal $ "Running command: '" <> T.unpack cmd <> "' in: " <> cwd
+  shell cmd empty
 
 withCwd :: MonadIO m => Turtle.FilePath -> m a -> m a
 withCwd dir act = do
@@ -50,7 +66,9 @@ commandDeps cmds file = do
         t
 
 graphicDeps :: FilePath -> IO [FilePath]
-graphicDeps = commandDeps ["includegraphics"]
+graphicDeps file = do
+  deps <- commandDeps ["includegraphics"] file
+  return $ fmap dropDirectory1 deps
 
 texDeps :: FilePath -> IO [FilePath]
 texDeps file = do
