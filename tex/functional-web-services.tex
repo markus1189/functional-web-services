@@ -349,29 +349,54 @@ sealed trait Ctx
 case object P extends Ctx
 case object N extends Ctx
 
-implicit def pushNeg[A:Exp]: Exp[Ctx => A] = ???
+// newtype for: Ctx => A
+final class Push[A](val run: Ctx => A) extends AnyVal
 \end{minted}
 \end{frame}
 
 \begin{frame}[fragile]
   \frametitle{Final Encoding: Transformations}
 \begin{minted}{scala}
-def pushNeg[A](implicit E: Exp[A]): Exp[Ctx => A] =
-  new Exp[Ctx => A] {
-    def lit(x: Int): Ctx => A = {
+def pushNeg[A](implicit E: Exp[A]): Exp[Push[A]] =
+  new Exp[Push[A]] {
+    def add(e1: Push[A], e2: Push[A]): Push[A] =
+      new Push(ctx => E.add(e1.run(ctx),e2.run(ctx)))
+
+    def neg(e: Push[A]): Push[A] = new Push({
+      case P => e.run(N)
+      case N => e.run(P)
+    })
+
+    def lit(x: Int): Push[A] = new Push({
       case P => E.lit(x)
       case N => E.neg(E.lit(x))
-    }
-    def neg(e: Ctx => A): Ctx => A = {
-      case P => e(N)
-      case N => e(P)
-    }
-    def add(e1: Ctx => A,e2: Ctx => A): Ctx => A = {
-      ctx => E.add(e1(ctx), e2(ctx))
-    }
+    })
 }
 \end{minted}
+\end{frame}
 
+\begin{frame}[fragile]
+  \frametitle{Final Encoding: Performing Transformation}
+\begin{minted}{scala}
+scala> program[String]
+res0: String = (50 + -(6 + 2))
+
+scala> program[Push[String]]
+res1: Push[String] = ...
+
+scala> program[Push[String]].run(P)
+res2: String = (50 + (-6 + -2))
+\end{minted}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Final Encoding: Review}
+  \begin{itemize}
+  \item we \textbf{can} do transformations after all
+  \item (although still not as nice as pattern matching)
+  \item extension is possible without adapting existing code
+  \item so far, so good
+  \end{itemize}
 \end{frame}
 
 \section{Web Services With Http4s}
