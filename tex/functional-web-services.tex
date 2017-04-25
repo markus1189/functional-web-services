@@ -964,47 +964,40 @@ class RaceRegistrationService[F[_]:Monad
 \end{minted}
 \end{frame}
 
-\section{Testing}
-
-\begin{frame}[fragile]
-  \frametitle{Typeclasses Need Laws}
+\begin{frame}
+  \frametitle{So what?}
   \begin{itemize}
-  \item<1-> typeclasses should \textit{always} come with laws
-  \item<1-> what about \texttt{RunnerAlg}?
-  \end{itemize}
-\begin{minted}{scala}
-trait RunnerAlg[F[_]] {
-  def saveRunner(runner: Runner): F[Unit]
-  def findRunner(id: RunnerId): F[Option[Runner]]
-  def listRunner: F[Vector[Runner]]
-}
-\end{minted}
-  \begin{itemize}
-  \item<2-> \texttt{saveRunner *> saveRunner}
-  \item<2-> \texttt{findRunner *> findRunner}
-  \item<2-> \texttt{saveRunner *> findRunner}
-  \item<2-> \texttt{saveRunner *> listRunners}
+  \item okay we added a LOT of abstraction in our web service\ldots
+  \item why should we do that?
+    \begin{itemize}
+    \item composability
+    \item testability
+    \end{itemize}
   \end{itemize}
 \end{frame}
 
-\begin{frame}[fragile]
-  \frametitle{ScalaCheck}
+\begin{frame}
+  \frametitle{Composablity}
   \begin{itemize}
-  \item ScalaCheck is perfect for checking our laws
-  \item defined in terms of \texttt{RunnerAlg[F[\_]]}
+  \item we can choose interpreters and also mix them as we want:
+  \item remember push down negations?
+    \begin{itemize}
+    \item logging
+    \item security
+    \item timeouts
+    \item tracing
+    \end{itemize}
   \end{itemize}
+\end{frame}
 
-\begin{minted}{scala}
-forAll { (runner: Runner) =>
-  run {
-    RunnerAlg().saveRunner(runner) *>
-      RunnerAlg().findRunner(runner.id)
-  }.value should ===(runner)
-}
-\end{minted}
+\begin{frame}
+  \frametitle{Testability}
   \begin{itemize}
-  \item instantiate this test for our instances
-  \item pure in memory, cassandra, postgres, \dots{}
+  \item use in-memory interpreter by only changing the type parameter
+  \item formulate laws on our type classes
+  \item use ScalaCheck to check for all instances (Cassandra, Redis,
+    \ldots)
+  \item nice separation of domain logic that should not use the DSL
   \end{itemize}
 \end{frame}
 
@@ -1016,6 +1009,40 @@ forAll { (runner: Runner) =>
   \item btw: nice way to solve \href{https://stackoverflow.com/questions/3596366/what-is-the-expression-problem\#3776140}{expression problem} (exercise)
   \item you can \textit{always} convert between initial and final
   \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Final Encodings and Free Monads}
+  \begin{itemize}
+  \item final encoding + higher kinded type constructor\ldots
+  \item similar to Free Monads, the latter use an initial encoding
+  \item the two are \textit{interchangeable}
+    \begin{itemize}
+    \item final encoding $\rightarrow$ free monads: type class instance that builds the
+      free structure
+
+    \item free monads $\rightarrow$ final encoding: take in an instance and use
+      it
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Finalizing a Free Monad Program}
+\begin{minted}{scala}
+def finalize[R, F[_]:Monad:RunnerAlg](
+  p: FreeC[RunnerAlgFree, R]): F[R] =
+
+    Free.runFC(p)(new (RunnerAlgFree ~> F) {
+    def apply[A](fa: RunnerAlgFree[A]): F[A] =
+      fa match {
+        case SaveRunner(runner) =>
+          RunnerAlg[F].saveRunner(runner)
+        case FindRunner(id) =>
+          RunnerAlg[F].findRunner(id)
+
+      }})
+\end{minted}
 \end{frame}
 
 \begin{frame}
