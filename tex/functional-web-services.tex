@@ -376,6 +376,94 @@ def pushNeg[A](implicit E: Exp[A]): Exp[Push[A]] =
 \end{frame}
 
 \begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
+  \frametitle{Final Encoding: Transformations}
+\begin{minted}{scala}
+def pushNeg[A](implicit E: Exp[A]): Exp[Push[A]] =
+  new Exp[Push[A]] {
+    def add(e1: Push[A], e2: Push[A]): Push[A] =
+      new Push(ctx => E.add(e1.run(ctx),e2.run(ctx)))
+
+
+
+
+
+
+
+
+
+
+}
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
+  \frametitle{Final Encoding: Transformations}
+\begin{minted}{scala}
+def pushNeg[A](implicit E: Exp[A]): Exp[Push[A]] =
+  new Exp[Push[A]] {
+
+
+
+    def neg(e: Push[A]): Push[A] = new Push({
+      case P => e.run(N)
+      case N => e.run(P)
+    })
+
+
+
+
+
+}
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
+  \frametitle{Final Encoding: Transformations}
+\begin{minted}{scala}
+def pushNeg[A](implicit E: Exp[A]): Exp[Push[A]] =
+  new Exp[Push[A]] {
+
+
+
+
+
+
+
+
+    def lit(x: Int): Push[A] = new Push({
+      case P => E.lit(x)
+      case N => E.neg(E.lit(x))
+    })
+}
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
+  \frametitle{Final Encoding: Transformations}
+\begin{minted}{scala}
+def pushNeg[A](implicit E: Exp[A]): Exp[Push[A]] =
+  new Exp[Push[A]] {
+    def add(e1: Push[A], e2: Push[A]): Push[A] =
+      new Push(ctx => E.add(e1.run(ctx),e2.run(ctx)))
+
+    def neg(e: Push[A]): Push[A] = new Push({
+      case P => e.run(N)
+      case N => e.run(P)
+    })
+
+    def lit(x: Int): Push[A] = new Push({
+      case P => E.lit(x)
+      case N => E.neg(E.lit(x))
+    })
+}
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
   \frametitle{Final Encoding: Performing Transformation}
 \begin{minted}{scala}
 scala> program[String]
@@ -397,6 +485,23 @@ res2: String = (50 + (-6 + -2))
   \item extension is possible without adapting existing code
   \item so far, so good
   \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{When You Have A Shiny New Hammer\ldots}
+  \begin{minipage}{0.48\linewidth}
+  \begin{figure}
+    \centering
+    \includegraphics[height=4cm]{../pics/hammer.png}
+    \caption{Final Encoding}
+  \end{figure}
+  \end{minipage}
+  \begin{minipage}{0.48\linewidth}
+    \begin{figure}
+      \centering \includegraphics[height=3cm]{../pics/nail.png}
+      \caption{???}
+    \end{figure}
+  \end{minipage}
 \end{frame}
 
 \section{Web Services With Http4s}
@@ -433,7 +538,7 @@ res2: String = (50 + (-6 + -2))
   \begin{itemize}
   \item define \texttt{HttpService} using the built-in DSL
   \item \texttt{really} just \texttt{Request => Task[Response]}
-  \item (\texttt{Task[A]} is a better \texttt{Future[A]})
+  \item (\texttt{Task[A]} is a better\footnote{in the context of FP} \texttt{Future[A]})
   \item define routes via pattern matching:
   \end{itemize}
 \begin{minted}{scala}
@@ -462,14 +567,14 @@ HttpService {
 \begin{frame}[fragile]
   \frametitle{Our API}
 \begin{minted}{scala}
-GET  "localhost/runner/<runner-id>"
-POST "localhost/runner"
+GET  "/runner/<runner-id>"
+POST "/runner"
 
-GET  "localhost/race/<race-id>"
-POST "localhost/race"
+GET  "/race/<race-id>"
+POST "/race"
 
-GET  "localhost/registration/<race-id>"
-PUT  "localhost/registration"
+GET  "/registration/<race-id>"
+PUT  "/registration"
 \end{minted}
 \end{frame}
 
@@ -489,6 +594,14 @@ HttpService {
 
 }
 \end{minted}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Idea}
+  \begin{itemize}
+  \item define a web service that uses a DSL
+  \item each request modeled as a program that is executed
+  \end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]
@@ -522,6 +635,15 @@ trait RegistrationAlg[F[_]] {
   def findReg(id: RaceId): F[Option[Registration]]
 }
 \end{minted}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Let's hammer}
+  \begin{itemize}
+  \item each route leads to a program being executed
+  \item the interpreter is left abstract, instantiate when running
+  \item let's implement: registration of a runner for a race
+  \end{itemize}
 \end{frame}
 
 \begin{frame}
@@ -566,6 +688,7 @@ def registerOpt[F[_]:Monad:RunnerAlg:RaceAlg:RegistrationAlg](
 \end{frame}
 
 \begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
   \frametitle{Registration Program}
 \begin{minted}{scala}
 def registerOpt[F[_]:             // still abstract
@@ -579,14 +702,172 @@ def registerOpt[F[_]:             // still abstract
 \end{minted}
 \end{frame}
 
+\begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
+  \frametitle{The Runners Paradise DSL}
+\begin{minted}[fontsize=\footnotesize]{scala}
+def registerOpt[F[_]:Monad:RunnerAlg:RaceAlg:RegistrationAlg](
+      runnerId: RunnerId,
+      raceId: RaceId): F[Option[Registration]] = {
+
+    val M = Monad[OptionT[F, ?]]
+
+//  for {
+//    runner <- OptionT(RunnerAlg().findRunner(runnerId))
+//    race   <- OptionT(RaceAlg().findRace(raceId))
+//    reg    <- OptionT(RegistrationAlg().findReg(raceId)).
+//                orElse(M.point(Registration(race, Set())))
+//    newReg <- OptionT(reg.add(runner).pure[F])
+//    _      <- OptionT(RegistrationAlg().saveReg(newReg).
+//                map(Option(_)))
+//  } yield newReg
+  }.run
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
+  \frametitle{The Runners Paradise DSL}
+\begin{minted}[fontsize=\footnotesize]{scala}
+def registerOpt[F[_]:Monad:RunnerAlg:RaceAlg:RegistrationAlg](
+      runnerId: RunnerId,
+      raceId: RaceId): F[Option[Registration]] = {
+
+    val M = Monad[OptionT[F, ?]]
+
+//  for {
+      runner <- OptionT(RunnerAlg().findRunner(runnerId))
+//    race   <- OptionT(RaceAlg().findRace(raceId))
+//    reg    <- OptionT(RegistrationAlg().findReg(raceId)).
+//                orElse(M.point(Registration(race, Set())))
+//    newReg <- OptionT(reg.add(runner).pure[F])
+//    _      <- OptionT(RegistrationAlg().saveReg(newReg).
+//                map(Option(_)))
+//  } yield newReg
+  }.run
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
+  \frametitle{The Runners Paradise DSL}
+\begin{minted}[fontsize=\footnotesize]{scala}
+def registerOpt[F[_]:Monad:RunnerAlg:RaceAlg:RegistrationAlg](
+      runnerId: RunnerId,
+      raceId: RaceId): F[Option[Registration]] = {
+
+    val M = Monad[OptionT[F, ?]]
+
+//  for {
+//    runner <- OptionT(RunnerAlg().findRunner(runnerId))
+      race   <- OptionT(RaceAlg().findRace(raceId))
+//    reg    <- OptionT(RegistrationAlg().findReg(raceId)).
+//                orElse(M.point(Registration(race, Set())))
+//    newReg <- OptionT(reg.add(runner).pure[F])
+//    _      <- OptionT(RegistrationAlg().saveReg(newReg).
+//                map(Option(_)))
+//  } yield newReg
+  }.run
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
+  \frametitle{The Runners Paradise DSL}
+\begin{minted}[fontsize=\footnotesize]{scala}
+def registerOpt[F[_]:Monad:RunnerAlg:RaceAlg:RegistrationAlg](
+      runnerId: RunnerId,
+      raceId: RaceId): F[Option[Registration]] = {
+
+    val M = Monad[OptionT[F, ?]]
+
+//  for {
+//    runner <- OptionT(RunnerAlg().findRunner(runnerId))
+//    race   <- OptionT(RaceAlg().findRace(raceId))
+      reg    <- OptionT(RegistrationAlg().findReg(raceId)).
+                  orElse(M.point(Registration(race, Set())))
+//    newReg <- OptionT(reg.add(runner).pure[F])
+//    _      <- OptionT(RegistrationAlg().saveReg(newReg).
+//                map(Option(_)))
+//  } yield newReg
+  }.run
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
+  \frametitle{The Runners Paradise DSL}
+\begin{minted}[fontsize=\footnotesize]{scala}
+def registerOpt[F[_]:Monad:RunnerAlg:RaceAlg:RegistrationAlg](
+      runnerId: RunnerId,
+      raceId: RaceId): F[Option[Registration]] = {
+
+    val M = Monad[OptionT[F, ?]]
+
+//  for {
+//    runner <- OptionT(RunnerAlg().findRunner(runnerId))
+//    race   <- OptionT(RaceAlg().findRace(raceId))
+//    reg    <- OptionT(RegistrationAlg().findReg(raceId)).
+//                orElse(M.point(Registration(race, Set())))
+      newReg <- OptionT(reg.add(runner).pure[F])
+//    _      <- OptionT(RegistrationAlg().saveReg(newReg).
+//                map(Option(_)))
+//  } yield newReg
+  }.run
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
+  \frametitle{The Runners Paradise DSL}
+\begin{minted}[fontsize=\footnotesize]{scala}
+def registerOpt[F[_]:Monad:RunnerAlg:RaceAlg:RegistrationAlg](
+      runnerId: RunnerId,
+      raceId: RaceId): F[Option[Registration]] = {
+
+    val M = Monad[OptionT[F, ?]]
+
+//  for {
+//    runner <- OptionT(RunnerAlg().findRunner(runnerId))
+//    race   <- OptionT(RaceAlg().findRace(raceId))
+//    reg    <- OptionT(RegistrationAlg().findReg(raceId)).
+//                orElse(M.point(Registration(race, Set())))
+//    newReg <- OptionT(reg.add(runner).pure[F])
+      _      <- OptionT(RegistrationAlg().saveReg(newReg).
+                  map(Option(_)))
+//  } yield newReg
+  }.run
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
+  \frametitle{The Runners Paradise DSL}
+\begin{minted}[fontsize=\footnotesize]{scala}
+def registerOpt[F[_]:Monad:RunnerAlg:RaceAlg:RegistrationAlg](
+      runnerId: RunnerId,
+      raceId: RaceId): F[Option[Registration]] = {
+
+    val M = Monad[OptionT[F, ?]]
+
+    for {
+      runner <- OptionT(RunnerAlg().findRunner(runnerId))
+      race   <- OptionT(RaceAlg().findRace(raceId))
+      reg    <- OptionT(RegistrationAlg().findReg(raceId)).
+                  orElse(M.point(Registration(race, Set())))
+      newReg <- OptionT(reg.add(runner).pure[F])
+      _      <- OptionT(RegistrationAlg().saveReg(newReg).
+                  map(Option(_)))
+    } yield newReg
+  }.run
+\end{minted}
+\end{frame}
+
 \begin{frame}
   \frametitle{Getting More Concrete: Instances}
   \begin{itemize}
   \item to actually run programs, we need to have instances
   \item need to satisfy \texttt{all} constraints
-    \begin{itemize}
-    \item try to keep them minimal!
-    \end{itemize}
   \item pure in-memory, cassandra, postgres, redis, \dots{}
   \end{itemize}
 \end{frame}
@@ -638,11 +919,49 @@ Request => Task[Response]
   \end{itemize}
 \end{frame}
 
-\begin{frame}
-  \frametitle{Let's Have A Look}
-  \begin{center}
-    \includegraphics[width=0.5\textwidth]{../pics/review.jpg}
-  \end{center}
+\begin{frame}[fragile]
+  \frametitle{The RaceRegistrationService}
+\begin{minted}{scala}
+case class Register(runner: RunnerId, race: RaceId)
+class RaceRegistrationService[F[_]:Monad
+                                  :RunnerAlg
+                                  :RaceAlg
+                                  :RegistrationAlg](
+  natF: F ~> Task) {
+
+  def service: HttpService = {
+    def route = HttpService {
+      // ...
+      case req @ PUT -> Root / "registration" =>
+        handleRegistration(req)
+    }
+  }
+  // private def handleRegistration ...
+}
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \addtocounter{framenumber}{-1}
+  \frametitle{The RaceRegistrationService}
+\begin{minted}{scala}
+case class Register(runner: RunnerId, race: RaceId)
+class RaceRegistrationService[F[_]:Monad
+                                  :RunnerAlg
+                                  :RaceAlg
+                                  :RegistrationAlg](
+  natF: F ~> Task) {
+
+  private def handleRegistration(req: Req) = {
+    req.decodeWith(jsonOf[Register]) { reg =>
+      Programs.register[F](
+        reg.number,
+        reg.race
+      )
+    }
+  }
+}
+\end{minted}
 \end{frame}
 
 \section{Testing}
