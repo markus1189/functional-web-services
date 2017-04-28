@@ -195,6 +195,12 @@ implicit val calc: Exp[Int] = new Exp[Int] {
   def neg(e: Int): Int = -e
   def add(e1: Int, e2: Int): Int = e1 + e2
 }
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Final Encoding: Interpreter}
+  \begin{minted}{scala}
 implicit val pretty: Exp[String] = new Exp[String] {
   def lit(x: Int): String = x.shows
   def neg(e: String): String = "-" + e
@@ -637,13 +643,17 @@ trait RegistrationAlg[F[_]] {
 \end{minted}
 \end{frame}
 
-\begin{frame}
+\begin{frame}[fragile]
   \frametitle{Let's hammer}
   \begin{itemize}
   \item each route leads to a program being executed
   \item the interpreter is left abstract, instantiate when running
   \item let's implement: registration of a runner for a race
   \end{itemize}
+  \vfill
+\begin{minted}{scala}
+PUT  "/registration"
+\end{minted}
 \end{frame}
 
 \begin{frame}
@@ -898,8 +908,12 @@ class Cass[A](
 \end{minted}
   \vfill
 \begin{minted}{scala}
-def saveRunner(runner: Runner): Cass[Unit] =
-  new Cass(ReaderT(_.runners.save(runner).void))
+trait RunnerAlg[F[_]] {
+  def saveRunner(runner: Runner): Cass[Unit] =
+    new Cass(ReaderT(_.runners.save(runner).void))
+
+  // ...
+}
 \end{minted}
 \end{frame}
 
@@ -954,10 +968,10 @@ class RaceRegistrationService[F[_]:Monad
 
   private def handleRegistration(req: Req) = {
     req.decodeWith(jsonOf[Register]) { reg =>
-      Programs.register[F](
-        reg.number,
-        reg.race
-      )
+      natF(Programs.register[F](
+             reg.number,
+             reg.race
+          ))
     }
   }
 }
@@ -977,7 +991,7 @@ class RaceRegistrationService[F[_]:Monad
 \end{frame}
 
 \begin{frame}
-  \frametitle{Composablity}
+  \frametitle{Composability}
   \begin{itemize}
   \item we can choose interpreters and also mix them as we want:
   \item remember push down negations?
@@ -1043,6 +1057,16 @@ def finalize[R, F[_]:Monad:RunnerAlg](
 
       }})
 \end{minted}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Free Monads vs Final Encoding}
+  \begin{itemize}
+  \item being able to convert is great
+  \item final encoding: easy to compose many languages, lower overhead
+  \item free monads: reify as first class values, pattern matching
+  \item we should build more with final encodings
+  \end{itemize}
 \end{frame}
 
 \begin{frame}
