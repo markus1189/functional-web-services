@@ -11,7 +11,7 @@ import           Text.LaTeX hiding (empty)
 import           Text.LaTeX.Base.Parser
 import           Text.LaTeX.Base.Syntax
 import           System.Directory (getCurrentDirectory)
-import           Debug.Trace (traceShowM)
+import           Debug.Trace (traceShowM, traceShowId)
 
 main :: IO ()
 main = shakeArgs shakeOptions $ do
@@ -23,6 +23,12 @@ main = shakeArgs shakeOptions $ do
       need [inp]
       void $ withCwd dir $ graphviz (".." </> out) (T.pack (takeFileName inp))
 
+    "pics/*.png" %> \out -> do
+      let inp = out -<.> "svg"
+          dir = fromString (takeDirectory inp)
+      need [inp]
+      void $ withCwd dir $ convert (T.pack (takeFileName inp)) (T.pack (".." </> out))
+
     "//*.pdf" %> \out -> do
       let inp = out -<.> "tex"
           dir = fromString (takeDirectory inp)
@@ -30,6 +36,10 @@ main = shakeArgs shakeOptions $ do
       needsGraphics <- liftIO (graphicDeps inp)
       need ([inp] ++ map (takeDirectory inp </>) tdeps ++ needsGraphics)
       void $ withCwd dir $ latexmk (T.pack (takeFileName inp))
+
+
+convert :: Text -> Text -> Action ExitCode
+convert inp out = shell (traceShowId $ "convert -density 300 " <> inp <> " " <> out) empty
 
 latexmk :: Text -> Action ExitCode
 latexmk file = shell ("latexmk -shell-escape -pdf -g " <> file) empty

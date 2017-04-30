@@ -48,6 +48,7 @@ stdenv.mkDerivation {
     tex
     which
     graphviz
+    imagemagick
   ] ++ (with pythonPackages; [
     pygments
   ]) ++ (with haskellPackages; [
