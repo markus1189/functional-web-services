@@ -48,7 +48,7 @@
     \begin{itemize}
     \item explore final encodings
     \item write embedded DSLs
-    \item goal: craft beautiful web services
+    \item craft beautiful web services
     \end{itemize}
   \end{minipage}
   \vfill
@@ -143,7 +143,6 @@ def async(srv: ExpSrv)(p: Exp): Future[Int] = ???
     \item we don't want to change \texttt{Exp}
     \item old interpreters should work as before
     \end{itemize}
-  \item spoiler: boils down to the expression problem
   \end{itemize}
 \end{frame}
 
@@ -1065,7 +1064,6 @@ def finalize[R, F[_]:Monad:RunnerAlg](
   \item being able to convert is great
   \item final encoding: easy to compose many languages, lower overhead
   \item free monads: reify as first class values, pattern matching
-  \item we should build more with final encodings
   \end{itemize}
 \end{frame}
 
